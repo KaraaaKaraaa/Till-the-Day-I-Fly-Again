@@ -64,6 +64,7 @@
 <!-- Load your comics.js here -->
 <script src="comics.js"></script>
 <script>
+// ===================== STATE =====================
 let state = { chapterIndex:0, pageIndex:0 };
 
 const els = {
@@ -79,7 +80,7 @@ const els = {
   viewer: document.getElementById('viewer')
 };
 
-// Render sidebar
+// ===================== CHAPTERS =====================
 function renderChapters(){
   els.chaptersList.innerHTML = '';
   if(!db.chapters.length){ els.chaptersList.textContent="No chapters"; return; }
@@ -92,7 +93,6 @@ function renderChapters(){
   });
 }
 
-// Show page
 function showPage(ci,pi){
   if(!db.chapters.length) return;
   const chap = db.chapters[ci];
@@ -103,45 +103,52 @@ function showPage(ci,pi){
   els.nextBtn.disabled = (pi>=chap.pages.length-1);
 }
 
-// Navigation
 els.prevBtn.onclick = ()=>{ if(state.pageIndex>0) showPage(state.chapterIndex,state.pageIndex-1); }
 els.nextBtn.onclick = ()=>{ const p=state.pageIndex+1; if(p<db.chapters[state.chapterIndex].pages.length) showPage(state.chapterIndex,p); }
 
-// Initial render
 els.siteTitle.textContent = db.title || "That Day";
 renderChapters();
 showPage(0,0);
 
-// ===================== MUSIC FUNCTIONALITY =====================
-const songs = [
+// ===================== MUSIC =====================
+// Hardcoded song list as fallback
+let songs = [
   'music/Sienna - The Marias.mp3',
 ];
 
-let songIndex = 0;
+fetch('music/')
+  .then(r => r.text())
+  .then(html => {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(html,'text/html');
+    const links = [...doc.querySelectorAll('a')];
+    const mp3s = links.map(l => l.getAttribute('href')).filter(f => f.endsWith('.mp3'));
+    if(mp3s.length > 0) songs = mp3s.map(f => 'music/' + f);
 
-function playSong(index){
-  els.audio.src = songs[index];
-  els.audio.play();
-  const name = songs[index].split('/').pop().replace('.mp3','');
-  els.songDisplay.textContent = "Now Playing: " + name;
-}
+    let songIndex = Math.floor(Math.random() * songs.length);
 
-// Cycle to next song when current ends
-els.audio.addEventListener('ended', () => {
-  songIndex = (songIndex + 1) % songs.length;
-  playSong(songIndex);
-});
+    function playSong(index){
+      els.audio.src = songs[index];
+      els.audio.play().catch(()=>{}); // attempt autoplay
+      const name = songs[index].split('/').pop().replace('.mp3','');
+      els.songDisplay.textContent = "Now Playing: " + name;
+    }
 
-// Initial song
-playSong(songIndex);
+    els.audio.addEventListener('ended', () => {
+      songIndex = (songIndex + 1) % songs.length;
+      playSong(songIndex);
+    });
 
-// Mute/unmute toggle
-els.muteBtn.onclick = () => {
-  els.audio.muted = !els.audio.muted;
-  els.muteBtn.textContent = els.audio.muted ? "Unmute" : "Mute";
-};
+    // Initial song
+    playSong(songIndex);
 
-// ===================== SWIPE GESTURES FOR MOBILE =====================
+    els.muteBtn.onclick = () => {
+      els.audio.muted = !els.audio.muted;
+      els.muteBtn.textContent = els.audio.muted ? "Unmute" : "Mute";
+    };
+  });
+
+// ===================== SWIPE =====================
 let touchStartX = 0;
 let touchEndX = 0;
 
@@ -150,6 +157,7 @@ els.viewer.addEventListener('touchstart', e => {
 }, false);
 
 els.viewer.addEventListener('touchend', e => {
+  e.preventDefault(); // prevent scrolling
   touchEndX = e.changedTouches[0].screenX;
   handleGesture();
 }, false);
