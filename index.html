@@ -21,6 +21,9 @@
   #song-display{margin-top:5px;font-style:italic;}
   #music-label{margin-top:5px;font-weight:bold;color:#aaa;}
 
+  #mode-toggle {margin-left:10px;background:#777;}
+  #scroll-container {display:none;}
+
   /* ===================== MOBILE STYLES ===================== */
   @media (max-width: 768px) {
     .sidebar {float:none;width:100%;margin-bottom:10px;}
@@ -51,36 +54,47 @@
   <audio id="bg-audio" autoplay></audio>
 
   <div class="sidebar" id="chapters-list">No chapters loaded</div>
+
+  <!-- VIEWER -->
   <div class="viewer" id="viewer">
-    <div id="chapter-title"></div>
+    <div style="display:flex;align-items:center;">
+      <div id="chapter-title"></div>
+      <button id="mode-toggle">Switch to Scroll Mode</button>
+    </div>
+
+    <!-- PAGE-BY-PAGE VIEW -->
     <div id="page-container"></div>
-    <div class="nav">
+
+    <div class="nav" id="nav-buttons">
       <button id="prev-page">Prev</button>
       <button id="next-page">Next</button>
     </div>
+
+    <!-- SCROLLING VIEW -->
+    <div id="scroll-container"></div>
   </div>
 </div>
 
-<!-- Load your comics.js here -->
 <script src="comics.js"></script>
 <script>
-// ===================== STATE =====================
-let state = { chapterIndex:0, pageIndex:0 };
+let state = { chapterIndex:0, pageIndex:0, mode:"page" };
 
 const els = {
   chaptersList: document.getElementById('chapters-list'),
   chapterTitle: document.getElementById('chapter-title'),
   pageContainer: document.getElementById('page-container'),
+  scrollContainer: document.getElementById('scroll-container'),
   prevBtn: document.getElementById('prev-page'),
   nextBtn: document.getElementById('next-page'),
+  navButtons: document.getElementById('nav-buttons'),
   siteTitle: document.getElementById('site-title'),
   muteBtn: document.getElementById('mute-btn'),
   songDisplay: document.getElementById('song-display'),
   audio: document.getElementById('bg-audio'),
+  modeToggle: document.getElementById('mode-toggle'),
   viewer: document.getElementById('viewer')
 };
 
-// ===================== CHAPTERS =====================
 function renderChapters(){
   els.chaptersList.innerHTML = '';
   if(!db.chapters.length){ els.chaptersList.textContent="No chapters"; return; }
@@ -88,7 +102,12 @@ function renderChapters(){
     const div = document.createElement('div');
     div.className='chapter'+(i===state.chapterIndex?' active':'');
     div.textContent = c.title;
-    div.onclick = ()=>{ state.chapterIndex=i; state.pageIndex=0; showPage(i,0); renderChapters(); };
+    div.onclick = ()=>{
+      state.chapterIndex=i; state.pageIndex=0;
+      showPage(i,0);
+      renderChapters();
+      if(state.mode === "scroll") renderScrollMode();
+    };
     els.chaptersList.appendChild(div);
   });
 }
@@ -99,44 +118,67 @@ function showPage(ci,pi){
   state.chapterIndex=ci; state.pageIndex=pi;
   els.chapterTitle.textContent = chap.title + ' - Page ' + (pi+1) + '/' + chap.pages.length;
   els.pageContainer.innerHTML = `<img src="${chap.pages[pi]}" class="page-img"/>`;
+
   els.prevBtn.disabled = (pi===0);
   els.nextBtn.disabled = (pi>=chap.pages.length-1);
 }
 
-els.prevBtn.onclick = ()=>{ if(state.pageIndex>0) showPage(state.chapterIndex,state.pageIndex-1); }
-els.nextBtn.onclick = ()=>{ const p=state.pageIndex+1; if(p<db.chapters[state.chapterIndex].pages.length) showPage(state.chapterIndex,p); }
+els.prevBtn.onclick = ()=>{ if(state.pageIndex>0) showPage(state.chapterIndex,state.pageIndex-1); };
+els.nextBtn.onclick = ()=>{ const p=state.pageIndex+1; if(p<db.chapters[state.chapterIndex].pages.length) showPage(state.chapterIndex,p); };
 
 els.siteTitle.textContent = db.title || "Till the Day I Fly Again";
 renderChapters();
 showPage(0,0);
 
+// =============== SCROLL MODE ===============
+function renderScrollMode(){
+  const chap = db.chapters[state.chapterIndex];
+  els.scrollContainer.innerHTML = '';
+  chap.pages.forEach(src => {
+    const img = document.createElement('img');
+    img.src = src;
+    img.className = 'page-img';
+    els.scrollContainer.appendChild(img);
+  });
+}
+
+els.modeToggle.onclick = () => {
+  if(state.mode === "page"){
+    state.mode = "scroll";
+    els.pageContainer.style.display = 'none';
+    els.navButtons.style.display = 'none';
+    els.scrollContainer.style.display = 'block';
+    renderScrollMode();
+    els.modeToggle.textContent = "Switch to Page Mode";
+  } else {
+    state.mode = "page";
+    els.pageContainer.style.display = 'block';
+    els.navButtons.style.display = 'block';
+    els.scrollContainer.style.display = 'none';
+    els.modeToggle.textContent = "Switch to Scroll Mode";
+  }
+};
+
 // ===================== MUSIC =====================
-// List your songs manually here
 const songs = [
   'music/Sienna - The Marias.mp3',
-  'music/Let Down - Radiohead.mp3',
+  'music/Let Down - Radiohead.mp3'
 ];
-
-// Pick a random song to start
 let songIndex = Math.floor(Math.random() * songs.length);
 
 function playSong(index){
   els.audio.src = songs[index];
-  els.audio.play().catch(()=>{}); // attempt autoplay
+  els.audio.play().catch(()=>{});
   const name = songs[index].split('/').pop().replace('.mp3','');
   els.songDisplay.textContent = "Now Playing: " + name;
 }
 
-// Cycle to next song when current ends
 els.audio.addEventListener('ended', () => {
   songIndex = (songIndex + 1) % songs.length;
   playSong(songIndex);
 });
-
-// Initial song
 playSong(songIndex);
 
-// Mute/unmute toggle
 els.muteBtn.onclick = () => {
   els.audio.muted = !els.audio.muted;
   els.muteBtn.textContent = els.audio.muted ? "Unmute" : "Mute";
@@ -151,22 +193,23 @@ els.viewer.addEventListener('touchstart', e => {
 }, false);
 
 els.viewer.addEventListener('touchend', e => {
-  e.preventDefault(); // prevent scrolling
+  e.preventDefault();
   touchEndX = e.changedTouches[0].screenX;
   handleGesture();
 }, false);
 
 function handleGesture() {
-  if(touchEndX < touchStartX - 50){ // swipe left
+  if(state.mode === "scroll") return;
+
+  if(touchEndX < touchStartX - 50){
     const next = state.pageIndex + 1;
     if(next < db.chapters[state.chapterIndex].pages.length) showPage(state.chapterIndex, next);
   }
-  if(touchEndX > touchStartX + 50){ // swipe right
+  if(touchEndX > touchStartX + 50){
     const prev = state.pageIndex - 1;
     if(prev >= 0) showPage(state.chapterIndex, prev);
   }
 }
 </script>
-
 </body>
 </html>
