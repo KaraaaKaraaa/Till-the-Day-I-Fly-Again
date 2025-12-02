@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>That Day</title>
+<title>Till the Day I Fly Again</title>
 <style>
   body {margin:0;font-family:sans-serif;background:#111;color:#eee;}
   .container{max-width:900px;margin:20px auto;padding:10px;}
@@ -36,7 +36,7 @@
 <body>
 <div class="container">
   <header>
-    <h1 id="site-title">That Day</h1>
+    <h1 id="site-title">Till the Day I Fly Again</h1>
     <div class="story-summary">
       Silver Hoshino is a 15-year-old boy struggling with past trauma and finding solace in music and guitar. This story follows him and his friends as they navigate trust, grief, and self-expression trying to learn what it means to "live".
     </div>
@@ -106,7 +106,7 @@ function showPage(ci,pi){
 els.prevBtn.onclick = ()=>{ if(state.pageIndex>0) showPage(state.chapterIndex,state.pageIndex-1); }
 els.nextBtn.onclick = ()=>{ const p=state.pageIndex+1; if(p<db.chapters[state.chapterIndex].pages.length) showPage(state.chapterIndex,p); }
 
-els.siteTitle.textContent = db.title || "That Day";
+els.siteTitle.textContent = db.title || "Till the Day I Fly Again";
 renderChapters();
 showPage(0,0);
 
